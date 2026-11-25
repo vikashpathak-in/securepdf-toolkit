@@ -1,38 +1,58 @@
 # SecurePDF Toolkit
 
-A browser-based PDF workspace. The first release includes PDF merging, splitting, page reordering, rotation, extraction, text watermarks, AES-256 password protection, raster-based compression, and images-to-PDF.
+SecurePDF is a browser-based PDF workspace. The application is a static Next.js site with a separate client-side workspace at `/workspace.html`.
 
 ## Run locally
-
-This repository uses Next.js for the overview page and serves the processing workspace as a static browser page.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Open the local Next.js address and choose **Open PDF workspace**. The workspace is also available at `/workspace.html` on the deployed site.
+Open the local Next.js URL and choose **Open PDF workspace**.
 
-## Tools and limitations
+## Implemented tools
 
-| Tool | Implementation |
-|---|---|
-| Merge, split, reorder, rotate, extract | pdf-lib in the browser |
-| Text watermark | pdf-lib in the browser |
-| Images to PDF | pdf-lib and browser image decoding |
-| Password protection | QPDF WebAssembly, AES-256 |
-| Compression | PDF.js page rendering + JPEG reconstruction |
+### PDF operations
+- Merge, split, reorder, rotate and extract pages
+- Text watermarks and batch watermarking
+- Password protection through a QPDF WebAssembly integration (browser/CDN compatibility must be tested)
+- Images to PDF
+- Raster-based compression (not lossless; text, links, forms and vector content are not retained)
 
-Compression in this first release rasterises every page. The output may be smaller, but selectable text, links, form fields, accessibility structure and vector quality are not preserved. It is not a lossless optimiser.
+### Document workspace additions
+- Visual page manager with thumbnails, drag reordering, selection, deletion, duplication and rotation
+- OCR for scanned PDFs using Tesseract.js (English language data is loaded on demand)
+- PDF text extraction to XLSX
+- Basic invoice/GST field extraction from selectable PDF text
+- Candidate transaction-line extraction from selectable bank statement text
+- Page-render comparison report
+- Text annotation and drawn signature image on the first page
+- Batch watermarking
+- Clearing standard PDF document information fields
 
-Password protection uses QPDF WebAssembly loaded by the browser. If the WASM module cannot load in a browser or deployment environment, encryption will fail visibly and no success message will be shown. Always reopen the output and verify the password before sharing it.
+## Important limitations
 
-## Privacy and security
+This is an experimental first browser release. The tools have not yet been validated against a broad set of real-world documents or bank layouts.
 
-PDF bytes are processed in the browser tab. The app has no document-processing API and does not intentionally upload selected documents. The browser downloads JavaScript/WASM libraries from public CDNs, so it makes network requests to those library hosts. Do not use this on a shared or compromised device for highly sensitive records. Close the tab when finished.
+- **OCR:** Recognition depends on scan quality, language, rotation and contrast. OCR output must be proofread.
+- **PDF to Excel:** Exports selectable text by page. It does not guarantee reconstruction of tables.
+- **Invoice/GST reader:** Uses label and pattern matching. It is not a GST compliance check, tax determination or substitute for checking the original invoice. Blank or incorrect fields are possible.
+- **Bank statement to Excel:** Produces candidate transaction rows from extracted text. It does not reliably classify debit, credit and balance columns across banks. Reconcile every row to the source statement.
+- **PDF comparison:** Compares rendered pixels. It is not a semantic or legal redline and can report differences caused by rendering.
+- **Visual signatures:** The drawn signature is an image only. It is not a certificate-backed PDF digital signature.
+- **Cryptographic digital signatures:** Not implemented. Certificate/key custody, PDF signature containers, timestamping and validation are required before this can be offered.
+- **Metadata:** Clears common document information fields only. It is not a forensic scrub of XMP, embedded files, annotations, revision history or every metadata stream.
+- **Page manager:** Reordering/deletion/duplication and rotation are supported in the current interface. Verify outputs before relying on them.
+- **Batch processing:** Currently batch watermarking only.
+- **Compression:** Rebuilds pages as JPEG images and can make output larger or reduce quality. It removes selectable text and interactive PDF structures.
 
-The browser must have enough available memory for the selected files. Large or image-heavy documents can fail on low-memory devices. Keep original copies of important documents.
+## Privacy and external libraries
 
-## Release status
+PDF processing is intended to happen in the browser tab. There is no document-processing API in this repository. The page loads PDF.js, PDF-lib, Tesseract.js, SheetJS and the QPDF WebAssembly package from public CDNs, so the browser contacts those library hosts to download code and (for OCR) language data. The app does not intentionally upload the selected PDF bytes to a processing server. For highly sensitive documents, use a trusted device and network and review the code/dependencies before use.
 
-This is an initial functional release. Test with copies of representative PDFs before relying on outputs for business, tax, legal or archival workflows. OCR, PDF-to-Word, PDF-to-Excel, digital signatures, batch automation and desktop downloads are not included.
+Large files may exceed browser memory limits. Keep originals and close the tab after processing.
+
+## Verification status
+
+A successful Next.js static build confirms the website compiles; it does not prove every PDF operation works correctly in every browser. See [TEST_PLAN.md](./TEST_PLAN.md) for the manual verification checklist. Do not rely on extracted financial, tax, legal or identity data without comparing it with the source document.
