@@ -10,6 +10,21 @@
 
 .dropzone{border:2px dashed #46617f;border-radius:12px;padding:18px;text-align:center;color:#a9bdd5;background:#0a1829}.dropzone.drag{border-color:#60a5fa;background:#102743}.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:12px}.thumb{border:1px solid #344861;border-radius:10px;padding:8px;background:#091525;cursor:grab}.thumb canvas{width:100%;height:auto;background:#fff;border-radius:4px}.thumb small{display:block;margin-top:6px;color:#c4d4e8}.thumb.selected{outline:2px solid #60a5fa}.tool input[type=text],.tool textarea{width:100%;background:#091525;border:1px solid #344861;border-radius:9px;padding:10px;color:#fff}.tool textarea{min-height:80px}.tool button+button{margin-left:6px}.result{white-space:pre-wrap;max-height:220px;overflow:auto;background:#07111e;border-radius:8px;padding:10px;font-size:12px;color:#c5d5e8}.signature-pad{width:100%;height:130px;background:#fff;border-radius:8px;touch-action:none}.tool .warn{color:#fbbf24}
 </style>
+
+<style>
+.help-row{display:flex;justify-content:flex-end;margin-top:8px}
+.help-button{margin-top:0;padding:7px 11px;background:#263b56;border:1px solid #49617e;font-size:12px}
+.help-button:hover{background:#365477}
+.help-overlay{position:fixed;inset:0;z-index:9999;background:rgba(2,8,18,.78);display:none;align-items:center;justify-content:center;padding:18px}
+.help-overlay.open{display:flex}
+.help-dialog{width:min(560px,100%);max-height:85vh;overflow:auto;background:#101f33;border:1px solid #49617e;border-radius:16px;padding:22px;box-shadow:0 24px 80px #0009}
+.help-dialog h2{margin:0 42px 12px 0;font-size:20px;color:#f1f6ff}
+.help-dialog ol,.help-dialog ul{padding-left:22px;line-height:1.7;color:#d3dfef}
+.help-dialog p{line-height:1.6;color:#b6c7dc}
+.help-dialog .help-close{float:right;margin:0;background:#334155;padding:8px 12px}
+.help-dialog .help-note{padding:10px 12px;background:#0a1829;border-left:3px solid #60a5fa;border-radius:8px;font-size:13px}
+@media(max-width:600px){.help-dialog{padding:18px}.help-dialog h2{font-size:18px}}
+</style>
 </head>
 <body>
 <header><strong>SecurePDF <span style="color:#60a5fa">Toolkit</span></strong><a class="back" href="./">Back to overview</a></header>
@@ -39,6 +54,10 @@
 <section class="tool wide"><h2>Cryptographic digital signatures</h2><p class="warn">Not available in this browser-only release.</p><p>A drawn signature is only an image. A verifiable PDF digital signature requires a signing certificate/private key, signature validation, trusted timestamp support and a PDF signing implementation that preserves the document's signature structure. SecurePDF does not currently issue or manage certificates, and will not label a drawn signature as legally verified.</p></section>
 </div>
 <p class="small" style="margin-top:24px">For large documents, keep this tab open until the download completes. Browser memory limits vary. Compression rebuilds each page as an image and is not suitable when you need searchable text or accessible PDF content.</p>
+
+<div class="help-overlay" id="toolHelpOverlay" role="dialog" aria-modal="true" aria-labelledby="toolHelpTitle">
+ <div class="help-dialog"><button type="button" class="help-close" id="toolHelpClose">Close ✕</button><h2 id="toolHelpTitle">How to use this tool</h2><div id="toolHelpBody"></div></div>
+</div>
 </main>
 <script>
 const {PDFDocument,rgb,degrees,StandardFonts}=PDFLib;
@@ -89,5 +108,37 @@ async function saveAnnotation(){await run("annotationStatus",async()=>{const f=g
 async function batchWatermark(){await run("batchStatus",async()=>{const fs=getFiles("batchFiles"),text=$("batchText").value.trim();if(!text)throw Error("Enter watermark text.");for(let i=0;i<fs.length;i++){setStatus("batchStatus","Processing "+(i+1)+" of "+fs.length+"…");const doc=await PDFDocument.load(await bytes(fs[i])),font=await doc.embedFont(StandardFonts.Helvetica);doc.getPages().forEach(p=>{const s=p.getSize();p.drawText(text,{x:s.width*.12,y:s.height*.48,size:32,font,color:rgb(.5,.5,.5),opacity:.2,rotate:degrees(-30)})});savePdf(await doc.save(),fs[i].name.replace(/\.pdf$/i,"")+"-watermarked.pdf")}setStatus("batchStatus","Processed "+fs.length+" file(s).")})}
 async function stripMetadata(){await run("metadataStatus",async()=>{const f=getFile("metadataPdf"),doc=await PDFDocument.load(await bytes(f));doc.setTitle("");doc.setAuthor("");doc.setSubject("");doc.setKeywords([]);doc.setCreator("");doc.setProducer("");doc.setCreationDate(new Date(0));doc.setModificationDate(new Date(0));savePdf(await doc.save(),"metadata-cleared.pdf");setStatus("metadataStatus","Standard document information fields cleared. This is not a forensic metadata scrub.")})}
 
+</script>
+
+<script>
+(()=>{
+ const guides = {
+ "Merge PDFs":{steps:["Select two or more PDF files. The files are combined in the order shown in the file picker.","Click Merge and download.","Save the merged.pdf file when your browser prompts or downloads it."],note:"Check the selected file order before merging. Password-protected or damaged PDFs may fail to open."},
+ "Split PDF":{steps:["Select one PDF file.","Enter page ranges separated by semicolons, for example 1-3; 4-6; 7.","Click Split and download. Each range creates a separate PDF download."],note:"Page numbering starts at 1. Your browser may ask permission for multiple downloads."},
+ "Reorder pages":{steps:["Select a PDF file.","Enter every page number once, in the exact order you want. For example, 3,1,2.","Click Reorder and download."],note:"This tool requires a complete page order. Do not omit or repeat page numbers."},
+ "Rotate pages":{steps:["Select a PDF file.","Choose 90°, 180° or 270° clockwise.","Optionally enter page numbers or ranges such as 1,3-5. Leave blank to rotate all pages.","Click Rotate and download."],note:"Page numbers start at 1. The rotation is added to the page's existing orientation."},
+ "Extract pages":{steps:["Select a PDF file.","Enter the pages to keep, such as 1,3-5.","Click Extract and download to create a PDF containing only those pages."],note:"Page numbers start at 1. Enter at least one valid page or range."},
+ "Text watermark":{steps:["Select a PDF file and enter the watermark text.","Set opacity between 0.05 and 1. A lower value is more transparent.","Click Add watermark and download."],note:"The text watermark is applied to every page. Review the output to ensure it does not obscure important content."},
+ "Password protection":{steps:["Select the PDF you want to protect.","Enter an open password and a different owner password. Use strong passwords and store them securely.","Click Encrypt and download.","Open the downloaded PDF in a separate PDF reader and confirm that the password is required."],note:"Encryption depends on the QPDF WebAssembly module loading and working in your browser. Verify the output before relying on it. If it fails, do not assume the PDF is protected."},
+ "Compress PDF":{steps:["Select the PDF file.","Choose image quality. Lower quality usually creates a smaller file but can make text and images less clear.","Choose the render scale. Higher scale usually improves detail but can increase file size.","Click Compress and download, then compare the output size and inspect every page."],note:"This tool rebuilds pages as images. Searchable text, links, forms, accessibility and vector content are lost. The result can be larger than the original."},
+ "Images to PDF":{steps:["Select one or more JPG, PNG or WebP images.","Arrange the files in the desired order in the file picker if your browser supports it.","Click Create PDF and download."],note:"Each image becomes one PDF page. Very large images can create a large PDF."},
+ "Visual page manager":{steps:["Choose a PDF file or drag it into the drop area. Wait for page thumbnails to load.","Drag thumbnails to change page order. Click a thumbnail to select or deselect it.","Use Select all or Clear selection as needed.","Use Delete selected, Duplicate selected or Rotate selected 90°.","Click Download edited PDF to save the result."],note:"At least one page must remain. Check the final PDF carefully, especially after deleting, duplicating or rotating pages."},
+ "OCR scanned PDF":{steps:["Select a scanned PDF.","Optionally enter page numbers or ranges. Leave blank to recognise all pages.","Click Recognise text and download TXT and wait while each page is processed.","Open the downloaded text file and correct recognition errors."],note:"OCR currently uses English recognition data. Results depend on scan quality, resolution, rotation and language. Proofread names, dates, amounts and reference numbers."},
+ "PDF to Excel":{steps:["Select a PDF that contains selectable text.","Click Extract text to XLSX.","Open the spreadsheet and review the ExtractedText column for each page."],note:"This exports text grouped by page. It does not reliably detect table columns or reconstruct a spreadsheet. For scanned PDFs, run OCR separately first."},
+ "Invoice and GST reader":{steps:["Select an invoice PDF containing selectable text. Run OCR first if it is a scan.","Click Extract invoice fields to Excel.","Review the preview and spreadsheet. Compare every extracted field with the original invoice."],note:"This is pattern-based extraction, not GSTIN verification or tax validation. Missing or incorrectly matched fields are possible. Do not use the output for filing or payment without manual checks."},
+ "Bank statement to Excel":{steps:["Select a bank statement PDF containing selectable text. Run OCR first if it is scanned.","Click Extract transactions to XLSX.","Review each candidate row against the statement, including date, narration and amounts.","Correct and classify debit, credit and balance values manually before reconciliation."],note:"Bank formats vary. The tool does not reliably classify debit, credit and balance columns and may miss or misread transactions."},
+ "Compare PDF versions":{steps:["Choose the original PDF and the revised PDF.","Click Compare pages and wait for the page render comparison.","Review the page-by-page difference percentages and the downloaded JSON report."],note:"This compares rendered page appearance, not document meaning or exact text changes. Different fonts, scaling or rendering can affect results. It is not a legal redline."},
+ "Annotate and visual signature":{steps:["Select the PDF to annotate.","Optionally enter a text note.","Draw your signature in the white signature area. Use Clear signature to start again.","Click Apply to first page and download.","Open the downloaded PDF and check the placement."],note:"The note and drawn signature image are added to the first page only. This is not a certificate-backed or cryptographically verifiable digital signature."},
+ "Batch watermark":{steps:["Select multiple PDF files.","Enter the watermark text to apply to all selected files.","Click Process batch and wait for each file to finish downloading."],note:"The same watermark is applied to every page of each PDF. Your browser may need permission to download multiple files."},
+ "Remove document metadata":{steps:["Select the PDF file.","Click Clear standard metadata and download.","Review the downloaded file's properties in a PDF reader."],note:"This clears standard document information fields only. It does not guarantee removal of all embedded metadata, attachments, annotations, hidden content or revision history."},
+ "Cryptographic digital signatures":{steps:["This feature is not available in the current browser-only release.","Use a trusted PDF signing service or desktop application that supports certificate-based signing and validation.","Verify the signer certificate and document status in a compatible PDF reader."],note:"A drawn signature image is not a digital certificate signature. SecurePDF does not issue or manage signing certificates."}
+ };
+ const overlay=document.getElementById("toolHelpOverlay"),title=document.getElementById("toolHelpTitle"),body=document.getElementById("toolHelpBody"),close=document.getElementById("toolHelpClose");
+ if(!overlay||!title||!body||!close)return;
+ function openGuide(name){const g=guides[name];if(!g)return;title.textContent="How to use: "+name;body.innerHTML="<ol>"+g.steps.map(s=>"<li>"+s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")+"</li>").join("")+"</ol><p class='help-note'>"+g.note.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")+"</p>";overlay.classList.add("open");close.focus()}
+ function hide(){overlay.classList.remove("open")}
+ close.addEventListener("click",hide);overlay.addEventListener("click",e=>{if(e.target===overlay)hide()});document.addEventListener("keydown",e=>{if(e.key==="Escape"&&overlay.classList.contains("open"))hide()});
+ document.querySelectorAll("section.tool").forEach(section=>{const h=section.querySelector("h2");if(!h)return;const name=h.textContent.trim();if(!guides[name])return;const row=document.createElement("div");row.className="help-row";const b=document.createElement("button");b.type="button";b.className="help-button";b.textContent="How to use ⓘ";b.addEventListener("click",()=>openGuide(name));row.appendChild(b);h.insertAdjacentElement("afterend",row)});
+})();
 </script>
 </body></html>
